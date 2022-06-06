@@ -23,21 +23,21 @@ io.on("connection", (socket) => {
   //   socket.to(anotherSocketId).emit("private message", socket.id, msg);
   // });
 
-  socket.on('pm', function (username, discussion_id, message) {
-    io.of("/").adapter.on("create-room", (room) => {
-      socket.broadcast.emit('message', {message: room})
-    });
+  socket.on(socket.id, function (username, discussionId, message) {
+    socket.broadcast.emit(socket.id, {username, discussionId, message});
   });
 
   socket.on('disconnect', function (message, username, discussion_id) {
     socket.broadcast.emit('message', {message: username + ' is disconnected '});
+    socket.broadcast.emit(socket.id, {message: username + ' is disconnected '});
   });
 
   // Dès qu'on reçoit un message, on récupère le pseudo de son auteur et on le transmet aux autres personnes
-  socket.on('general', function (username, userId, message) {
+  socket.on('lobby', function (username, userId, message) {
     message = ent.encode(message);
-    users.push({username, userId});
-    socket.broadcast.emit('message', {username, userId, message});
+    const discussionId = socket.id;
+    users.push({username, discussionId});
+    socket.broadcast.emit('message', {username, discussionId, message});
   });
 });
 
