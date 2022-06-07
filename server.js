@@ -19,25 +19,28 @@ app.get('/client', function (req, res) {
 
 io.on("connection", (socket) => {
   // Private message
-  // socket.on("private message", (anotherSocketId, msg) => {
-  //   socket.to(anotherSocketId).emit("private message", socket.id, msg);
-  // });
-
-  socket.on(socket.id, function (username, discussionId, message) {
-    socket.broadcast.emit(socket.id, {username, discussionId, message});
+  socket.on("private message", (anotherSocketId, message) => {
+    console.log(anotherSocketId);
+    socket.to(anotherSocketId).emit("private message", message);
   });
 
-  socket.on('disconnect', function (message, username, discussion_id) {
-    socket.broadcast.emit('message', {message: username + ' is disconnected '});
+  socket.on('disconnect', function (message, username, discussionId) {
+    users.forEach(function (user, index) {
+      if (user.client === socket.client.id) {
+        socket.broadcast.emit('message', {message: user.username + ' is disconnected '});
+        // TODO remove user in array
+      }
+    })
     socket.broadcast.emit(socket.id, {message: username + ' is disconnected '});
   });
 
   // Dès qu'on reçoit un message, on récupère le pseudo de son auteur et on le transmet aux autres personnes
-  socket.on('lobby', function (username, userId, message) {
+  socket.on('general', function (username, userId, message) {
     message = ent.encode(message);
     const discussionId = socket.id;
-    users.push({username, discussionId});
-    socket.broadcast.emit('message', {username, discussionId, message});
+    const client = socket.client.id;
+    users.push({username, client});
+    socket.broadcast.emit('message', {username, discussionId, message, client});
   });
 });
 
