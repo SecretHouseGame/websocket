@@ -20,15 +20,21 @@ app.get('/client', function (req, res) {
 io.on("connection", (socket) => {
   // Private message
   socket.on("private message", (anotherSocketId, message) => {
-    console.log(anotherSocketId);
-    socket.to(anotherSocketId).emit("private message", message);
+    socket.to(anotherSocketId).emit(message);
   });
 
-  socket.on('disconnect', function (message, username, discussionId) {
-    users.forEach(function (user, index) {
+  socket.on('disconnect', function (message, username) {
+    users.forEach(function (user) {
       if (user.client === socket.client.id) {
         socket.broadcast.emit('message', {message: user.username + ' is disconnected '});
-        // TODO remove user in array
+
+        for (let i=0; i < users.length; i++) {
+          if (users[i] === user) {
+            users.splice(i, 1);
+            break;
+          }
+        }
+
       }
     })
     socket.broadcast.emit(socket.id, {message: username + ' is disconnected '});
@@ -39,8 +45,8 @@ io.on("connection", (socket) => {
     message = ent.encode(message);
     const discussionId = socket.id;
     const client = socket.client.id;
-    users.push({username, client});
-    socket.broadcast.emit('message', {username, discussionId, message, client});
+    users.push({username, userId, client});
+    socket.broadcast.emit('message', {username, userId, message, client});
   });
 });
 
