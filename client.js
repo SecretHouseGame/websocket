@@ -3,6 +3,11 @@ const socket = io.connect('http://localhost:3000');
 let currentUser = '';
 let party = '';
 
+// TODO Party is id to regroup users, messages and private messages.
+// TODO: Party_channel OR Party_pm_userid
+// FIXME: Lorsqu'on envoie un message privee, ils sont encore deétecté comme message normaux et non message privee donc
+//  ne passe plus par le private message. -> Change le state du chat privee pour envoyer directement en message privée.
+
 // On demande le pseudo, on l'envoie au serveur et on l'affiche dans le titre
 if (localStorage.getItem('username')) {
   currentUser = localStorage.getItem('username');
@@ -13,26 +18,50 @@ if (localStorage.getItem('username')) {
 
 // Fake party ID
 if (localStorage.getItem('party')) {
-  party = localStorage.getItem('username');
+  party = localStorage.getItem('party');
 } else {
   party = prompt('Veuillez saisir l\'id de votre party');
   localStorage.setItem('party', party);
 }
 
-localStorage.setItem('channel', 'general');
+localStorage.setItem('channel', 'tab-general');
 
 let userId = Math.round(Math.random() * 100);
 
 // When logged on websocket, send user info and get Lobby room Id
 document.title = currentUser + ' - ' + document.title;
-document.addEventListener('readystatechange', sendMessage(localStorage.getItem('channel'), currentUser, userId, 'vient de rejoindre le chat'))
+document.addEventListener('readystatechange',
+    sendMessage(
+        localStorage.getItem('channel'),
+        currentUser,
+        userId,
+        'vient de rejoindre le chat'
+    )
+)
 
 function sendMessage(channel, username, userId, message) {
-  socket.emit(channel, username, userId, message); // Transmet le message aux autres
+  socket.emit(channel, username, userId, message, localStorage.getItem('party')); // Transmet le message aux autres
 }
 
-socket.on("message", function (data) {
-  insertMessage(localStorage.getItem('channel'), data.username, data.userId, data.message)
+socket.on("message_" + party, function (data) {
+  insertMessage(
+      'tab-general',
+      data.username,
+      data.userId,
+      data.message
+  )
+})
+
+console.log(party + "_pm_" + userId);
+
+socket.on(party + "_pm_" + userId, function (data) {
+  console.log(data);
+  insertMessage(
+      localStorage.getItem('channel'),
+      data.username,
+      data.userId,
+      data.message
+  )
 })
 
 // Add message in chat page
@@ -63,21 +92,23 @@ function getUserInfo(username, userId) {
   if (currentUser !== username) {
     pm(username, userId)
 
-    sendMessage('private message', userId, 'An user want start a new discussion with you.')
+    sendMessage('private message', currentUser, userId, 'An user want start a new discussion with you.', party)
   }
 
-  document.querySelector('#pills-tabContent').insertAdjacentHTML('beforeend', `<div class="tab-pane fade card-body" id="zone-chat-${userId}" data-room="${userId}"></div>`)
+  document.querySelector('#pills-tabContent').insertAdjacentHTML('beforeend', `<div class="tab-pane fade card-body" data-type="private_message" id="zone-chat-${userId}" data-room="${userId}"></div>`)
 }
 
 function setChannel (e) {
-  localStorage.setItem('channel', e['id']);
+  localStorage.setItem('channel', party + "_pm_" + e['id']);
+
+  // FIXME HERE CONTINUE PRIVATE MESSAGE
 
   sendMessage(localStorage.getItem('channel'), currentUser, userId, 'Bonjour, test')
 }
 
 function pm(username, userId) {
   document.querySelector('#pills-tab').insertAdjacentHTML('beforeend', `<li class="nav-item" role="presentation">
-            <button class="nav-link" id="${userId}" data-bs-toggle="pill" data-bs-target="#zone-chat-${userId}"
+            <button class="nav-link" id="${userId}" data-type="private_message" data-bs-toggle="pill" data-bs-target="#zone-chat-${userId}"
                     type="button" role="tab" aria-controls="pills-profile" aria-selected="false" onclick="setChannel(this)">` + username +
     '            </button>\n' +
     '        </li>')
@@ -88,7 +119,7 @@ document.querySelector('#formulaire_chat').addEventListener('submit', function (
   e.preventDefault();
   const message = document.querySelector('#message').value;
 
-  socket.emit(localStorage.getItem('channel'), currentUser, userId, message); // Transmet le message aux autres
+  sendMessage(localStorage.getItem('channel'), currentUser, userId, message, localStorage.getItem('party'));
   insertMessage(localStorage.getItem('channel'), currentUser, userId, message); // Affiche le message aussi sur notre page
   document.querySelector('#message').value = ''; // Vide la zone de Chat et remet le focus dessus
 
