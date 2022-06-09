@@ -20,13 +20,7 @@ app.get('/client', function (req, res) {
 io.on("connection", (socket) => {
   // Private message
   socket.on("private message", (username, userId, message, partyId) => {
-    console.log('userId : ' + userId);
-    console.log('partyId : ' + partyId);
-    console.log('username : ' + username);
-    console.log('message : ' + message);
-    console.log('                                           ');
-    console.log(partyId + "_pm_" + userId);
-    socket.to(partyId + "_pm_" + userId).emit(message);
+    socket.broadcast.emit(userId, {username: username, message: message});
   });
 
   socket.on('disconnect', function (message, username) {
@@ -47,16 +41,11 @@ io.on("connection", (socket) => {
   });
 
   // Dès qu'on reçoit un message, on récupère le pseudo de son auteur et on le transmet aux autres personnes
-  socket.on('tab-general', function (username, userId, message, partyId) {
+  socket.on('tab-general', function (username, socketId, message, partyId) {
     message = ent.encode(message);
-    console.log('PartyId : ' + partyId);
-    console.log('username : ' + username);
-    console.log('userID : ' + userId);
-    console.log('message : ' + message);
-    console.log('                                           ');
-    const client = socket.client.id;
-    users.push({username, userId, client});
-    socket.broadcast.emit('message_' + partyId,{username, userId, message, client});
+    users.push({username, socketId});
+
+    socket.broadcast.emit('message_' + partyId,{username, socketId, message});
   });
 });
 
