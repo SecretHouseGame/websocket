@@ -1,64 +1,127 @@
 // Connexion à socket.io
 const socket = io.connect('http://localhost:3000');
+let currentUser = '';
+let party = '';
+
+// TODO Party is id to regroup users, messages and private messages.
+// TODO: Party_channel OR Party_pm_userid
+// FIXME: Lorsqu'on envoie un message privee, ils sont encore deétecté comme message normaux et non message privee donc
+//  ne passe plus par le private message. -> Change le state du chat privee pour envoyer directement en message privée.
+
 // On demande le pseudo, on l'envoie au serveur et on l'affiche dans le titre
-const username = prompt('Quel est votre pseudo ?');
-const channel = 'general';
-const discussion_id = socket.id;
-const userId = Math.round(Math.random() * 100);
-console.log(userId);
-
-document.title = username + ' - ' + document.title;
-// Quand on reçoit un message, on l'insère dans la page
-document.addEventListener('readystatechange', sendMessage(channel, username, userId, 'vient de rejoindre le chat'))
-
-function sendMessage (channel, username, userId, message) {
-  socket.emit(username, userId, message, channel); // Transmet le message aux autres
+if (localStorage.getItem('username')) {
+  currentUser = localStorage.getItem('username');
+} else {
+  currentUser = prompt('Quel est votre pseudo ?');
+  localStorage.setItem('username', currentUser);
 }
 
-socket.on("message", function(data) {
-  insertMessage(data.username, data.userId, data.message)
+// Fake party ID
+if (localStorage.getItem('party')) {
+  party = localStorage.getItem('party');
+} else {
+  party = prompt('Veuillez saisir l\'id de votre party');
+  localStorage.setItem('party', party);
+}
+
+localStorage.setItem('channel', 'tab-general');
+
+let userId = Math.round(Math.random() * 100);
+
+// When logged on websocket, send user info and get Lobby room Id
+document.title = currentUser + ' - ' + document.title;
+document.addEventListener('readystatechange',
+    sendMessage(
+        localStorage.getItem('channel'),
+        currentUser,
+        userId,
+        'vient de rejoindre le chat'
+    )
+)
+
+function sendMessage(channel, username, userId, message) {
+  socket.emit(channel, username, userId, message, localStorage.getItem('party')); // Transmet le message aux autres
+}
+
+socket.on("message_" + party, function (data) {
+  insertMessage(
+      'tab-general',
+      data.username,
+      data.userId,
+      data.message
+  )
 })
+
+console.log(party + "_pm_" + userId);
+
+socket.on(party + "_pm_" + userId, function (data) {
+  console.log(data);
+  insertMessage(
+      localStorage.getItem('channel'),
+      data.username,
+      data.userId,
+      data.message
+  )
+})
+
+// Add message in chat page
+function insertMessage(channel, username, userId, message) {
+  const chat = document.querySelector('#zone-chat-' + channel);
+
+  if (username !== undefined) {
+    chat.insertAdjacentHTML(
+      'beforeend',
+      '<div><a href="#" onclick="getUserInfo(`' + username + '`, `' + userId + '`)" data-action="infos-user" data-id=' + userId +
+      '        data-bs-toggle="popover" data-bs-placement="right"\n' +
+      '        data-bs-custom-class="custom-popover"\n' +
+      '        title="Custom popover"\n' +
+      '        data-bs-content="This popover is themed via CSS variables.">' + username + '</a> ' + message + '</div>');
+  } else {
+    chat.insertAdjacentHTML(
+      'beforeend',
+      '<div class="justify-content-center">' + message + '</div>');
+  }
+
+  chat.scroll({
+    top: chat.scrollHeight, behavior: "smooth"
+  })
+}
+
+function getUserInfo(username, userId) {
+  // Avoid send primate message to current user
+  if (currentUser !== username) {
+    pm(username, userId)
+
+    sendMessage('private message', currentUser, userId, 'An user want start a new discussion with you.', party)
+  }
+
+  document.querySelector('#pills-tabContent').insertAdjacentHTML('beforeend', `<div class="tab-pane fade card-body" data-type="private_message" id="zone-chat-${userId}" data-room="${userId}"></div>`)
+}
+
+function setChannel (e) {
+  localStorage.setItem('channel', party + "_pm_" + e['id']);
+
+  // FIXME HERE CONTINUE PRIVATE MESSAGE
+
+  sendMessage(localStorage.getItem('channel'), currentUser, userId, 'Bonjour, test')
+}
+
+function pm(username, userId) {
+  document.querySelector('#pills-tab').insertAdjacentHTML('beforeend', `<li class="nav-item" role="presentation">
+            <button class="nav-link" id="${userId}" data-type="private_message" data-bs-toggle="pill" data-bs-target="#zone-chat-${userId}"
+                    type="button" role="tab" aria-controls="pills-profile" aria-selected="false" onclick="setChannel(this)">` + username +
+    '            </button>\n' +
+    '        </li>')
+}
 
 // Lorsqu'on envoie le formulaire, on transmet le message et on l'affiche sur la page
 document.querySelector('#formulaire_chat').addEventListener('submit', function (e) {
   e.preventDefault();
   const message = document.querySelector('#message').value;
 
-  socket.emit(channel, username, userId, message); // Transmet le message aux autres
-
-  insertMessage(username, userId, message); // Affiche le message aussi sur notre page
-
+  sendMessage(localStorage.getItem('channel'), currentUser, userId, message, localStorage.getItem('party'));
+  insertMessage(localStorage.getItem('channel'), currentUser, userId, message); // Affiche le message aussi sur notre page
   document.querySelector('#message').value = ''; // Vide la zone de Chat et remet le focus dessus
 
   return false; // Permet de bloquer l'envoi "classique" du formulaire
 });
-
-// Ajoute un message dans la page
-function insertMessage(username, userId, message) {
-  if (username !== undefined) {
-    document.querySelector('#zone_chat').insertAdjacentHTML(
-      'afterbegin',
-      '<div><a href="#" onclick="getUserInfo(`' + username + '`, `${userId}`)" data-action="infos-user" data-id='+ userId +
-      '        data-bs-toggle="popover" data-bs-placement="right"\n' +
-      '        data-bs-custom-class="custom-popover"\n' +
-      '        title="Custom popover"\n' +
-      '        data-bs-content="This popover is themed via CSS variables.">' + username + '</a> ' + message + '</div>');
-  } else {
-    document.querySelector('#zone_chat').insertAdjacentHTML(
-      'afterbegin',
-      '<div class="justify-content-center">' + message + '</div>');
-  }
-}
-
-function getUserInfo (username, userId) {
-  sendMessage('pm', username, userId)
-  pm(username, userId)
-}
-
-function pm(username, userId) {
-  document.querySelector('#pills-tab').insertAdjacentHTML('beforeend', `<li class="nav-item" role="presentation">
-            <button class="nav-link" id="${userId}" data-bs-toggle="pill" data-bs-target="#pills-profile"
-                    type="button" role="tab" aria-controls="pills-profile" aria-selected="false">` + username +
-    '            </button>\n' +
-    '        </li>')
-}

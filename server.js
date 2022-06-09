@@ -19,25 +19,44 @@ app.get('/client', function (req, res) {
 
 io.on("connection", (socket) => {
   // Private message
-  // socket.on("private message", (anotherSocketId, msg) => {
-  //   socket.to(anotherSocketId).emit("private message", socket.id, msg);
-  // });
-
-  socket.on('pm', function (username, discussion_id, message) {
-    io.of("/").adapter.on("create-room", (room) => {
-      socket.broadcast.emit('message', {message: room})
-    });
+  socket.on("private message", (username, userId, message, partyId) => {
+    console.log('userId : ' + userId);
+    console.log('partyId : ' + partyId);
+    console.log('username : ' + username);
+    console.log('message : ' + message);
+    console.log('                                           ');
+    console.log(partyId + "_pm_" + userId);
+    socket.to(partyId + "_pm_" + userId).emit(message);
   });
 
-  socket.on('disconnect', function (message, username, discussion_id) {
-    socket.broadcast.emit('message', {message: username + ' is disconnected '});
+  socket.on('disconnect', function (message, username) {
+    users.forEach(function (user) {
+      if (user.client === socket.client.id) {
+        socket.broadcast.emit('message', {message: user.username + ' is disconnected '});
+
+        for (let i=0; i < users.length; i++) {
+          if (users[i] === user) {
+            users.splice(i, 1);
+            break;
+          }
+        }
+
+      }
+    })
+    socket.broadcast.emit(socket.id, {message: username + ' is disconnected '});
   });
 
   // Dès qu'on reçoit un message, on récupère le pseudo de son auteur et on le transmet aux autres personnes
-  socket.on('general', function (username, userId, message) {
+  socket.on('tab-general', function (username, userId, message, partyId) {
     message = ent.encode(message);
-    users.push({username, userId});
-    socket.broadcast.emit('message', {username, userId, message});
+    console.log('PartyId : ' + partyId);
+    console.log('username : ' + username);
+    console.log('userID : ' + userId);
+    console.log('message : ' + message);
+    console.log('                                           ');
+    const client = socket.client.id;
+    users.push({username, userId, client});
+    socket.broadcast.emit('message_' + partyId,{username, userId, message, client});
   });
 });
 
