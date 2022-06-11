@@ -42,11 +42,8 @@ socket.on('connect', () => {
     )
 
     socket.on(socketId, function (data) {
-        console.log(data);
         if (!arrayDiscussion.includes(data.fromUserId)) {
             arrayDiscussion.push(data.fromUserId)
-
-            console.log(data.fromUserId);
 
             insertTab(data.username, data.fromUserId);
             insertChat(data.fromUserId);
@@ -114,18 +111,15 @@ function insertChat(channel_id) {
 }
 
 function setChannel(e) {
-    console.log(e.dataset.channel_id);
-
     localStorage.setItem('channel', e.dataset.channel_id);
 
     if (localStorage.getItem('channel') === 'tab-general') {
         localStorage.setItem('type', 'general');
     }
+    localStorage.setItem('type', 'pm');
 }
 
 function insertTab(username, userId) {
-    console.log('HERE ' + userId);
-
     document.querySelector('#pills-tab').insertAdjacentHTML('beforeend', `<li class="nav-item" role="presentation">
             <button class="nav-link" id="${userId}" data-type="private_message" data-channel_id="${userId}" data-bs-toggle="pill" data-bs-target="#zone-chat-${userId}"
                     type="button" role="tab" aria-controls="pills-profile" aria-selected="false" onclick="setChannel(this)">` + username +
@@ -146,7 +140,6 @@ document.querySelector('#formulaire_chat').addEventListener('submit', function (
     if (localStorage.getItem('type') === 'general') {
         sendMessage(localStorage.getItem('channel'), currentUser, socketId, socketId, message, localStorage.getItem('party'));
     } else {
-        console.log(localStorage.getItem('channel'));
         sendMessage('private message', currentUser, localStorage.getItem('channel'), socketId, message, localStorage.getItem('party'));
     }
 
