@@ -40,12 +40,23 @@ io.on("connection", (socket) => {
     socket.broadcast.emit(socket.id, {message: username + ' is disconnected '});
   });
 
+  socket.on('event', function (username, toUserId, fromUserId, message, partyId) {
+    console.log(username, toUserId, fromUserId, message, partyId);
+    message = ent.encode(message);
+    users.push({username, fromUserId});
+    let type = 'event';
+
+    socket.broadcast.emit('message_' + partyId,{username, toUserId, fromUserId, message, partyId, type});
+  });
+
   // Dès qu'on reçoit un message, on récupère le pseudo de son auteur et on le transmet aux autres personnes
   socket.on('tab-general', function (username, toUserId, fromUserId, message, partyId) {
     message = ent.encode(message);
     users.push({username, fromUserId});
 
-    socket.broadcast.emit('message_' + partyId,{username, toUserId, fromUserId, message, partyId});
+    console.log(username, toUserId, fromUserId, message, partyId);
+
+    socket.broadcast.emit('message_' + partyId,{username, toUserId, fromUserId, message, partyId, type: 'message'});
   });
 });
 
