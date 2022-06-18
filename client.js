@@ -33,11 +33,11 @@ document.title = currentUser + ' - ' + document.title;
 socket.on('connect', () => {
     socketId = socket.id
     sendMessage(
-        localStorage.getItem('channel'),
+        'event',
         currentUser,
         socketId,
         socketId,
-        'vient de rejoindre le chat avec le socket : ' + socketId,
+        currentUser + ' vient de rejoindre le chat avec le socket : ' + socketId,
         party
     )
 
@@ -49,16 +49,29 @@ socket.on('connect', () => {
             insertChat(data.fromUserId);
         }
 
+        if (localStorage.getItem('channel') !== data.fromUserId) {
+            addNotification (data.fromUserId)
+        }
+
         insertMessage(
             data.fromUserId,
             data.message,
             data.fromUserId,
             data.username
         )
+    })
+
+    socket.on("message_" + party, function (data) {
+        if (localStorage.getItem('channel') !== 'tab-general') {
+            addNotification ('tab-general')
+        }
+
         insertMessage(
-            'tab-general',
-            data.username + " vient de vous envoyer un message",
-            data.fromUserId
+          'tab-general',
+          data.message,
+          data.toUserId,
+          data.username,
+          data.type
         )
     })
 });
@@ -67,29 +80,35 @@ function sendMessage(channel, username, toUserId, fromUserId, message) {
     socket.emit(channel, username, toUserId, fromUserId, message, localStorage.getItem('party')); // Transmet le message aux autres
 }
 
-socket.on("message_" + party, function (data) {
-    insertMessage(
-        'tab-general',
-        data.message,
-        data.toUserId,
-        data.username
-    )
-})
+function addNotification (tab) {
+    const el = document.querySelector(`button.nav-link#` + tab);
+    const notification = document.querySelector(`div#notification-` + tab);
+
+    if (notification) {
+        let value = notification.textContent;
+        value++;
+        notification.innerHTML = value;
+    } else {
+        el.insertAdjacentHTML('beforeend', `
+        <div id="notification-${tab}" class="notifications bg-red-500 rounded-lg px-3 object-fill ml-1">1</div>
+    `)
+    }
+}
 
 // Add message in chat page
-function insertMessage(channel, message, userId, username) {
+function insertMessage(channel, message, userId, username, type) {
     const chat = document.querySelector('#zone-chat-' + channel);
 
-    if (username !== undefined) {
+    if (type === "event") {
         chat.insertAdjacentHTML(
-            'beforeend',
-            '<div><a href="" onclick="getUserInfo(this, `' + username + '`, `' + userId + '`)" data-action="infos-user" data-id=' + userId +
-            '   data-type="private_message" data-channel_id="' + userId + '" data-bs-toggle="pill" data-bs-target="#zone-chat-' + userId + '" role="tab" aria-controls="pills-profile" aria-selected="false"  ' +
-            '>' + username + '</a> ' + message + '</div>');
+          'beforeend',
+          '<div class="justify-center text-xs p-3">' + message + '</div>');
     } else {
         chat.insertAdjacentHTML(
-            'beforeend',
-            '<div class="justify-content-center">' + message + '</div>');
+          'beforeend',
+          '<div><a href="" onclick="getUserInfo(this, `' + username + '`, `' + userId + '`)" data-action="infos-user" data-id=' + userId +
+          '   data-type="private_message" data-channel_id="' + userId + '" data-bs-toggle="pill" data-bs-target="#zone-chat-' + userId + '" role="tab" aria-controls="pills-profile" aria-selected="false"  ' +
+          '>' + username + '</a> ' + message + '</div>');
     }
 
     chat.scroll({
@@ -111,17 +130,24 @@ function insertChat(channel_id) {
 }
 
 function setChannel(e) {
+    const notification = document.querySelector(`div#notification-` + e.dataset.channel_id);
+
+    if (notification) {
+        notification.remove()
+    }
+
     localStorage.setItem('channel', e.dataset.channel_id);
 
     if (localStorage.getItem('channel') === 'tab-general') {
         localStorage.setItem('type', 'general');
+    } else {
+        localStorage.setItem('type', 'pm');
     }
-    localStorage.setItem('type', 'pm');
 }
 
 function insertTab(username, userId) {
     document.querySelector('#pills-tab').insertAdjacentHTML('beforeend', `<li class="nav-item" role="presentation">
-            <button class="nav-link" id="${userId}" data-type="private_message" data-channel_id="${userId}" data-bs-toggle="pill" data-bs-target="#zone-chat-${userId}"
+            <button class="nav-link flex justify-center items-center px-1" id="${userId}" data-type="private_message" data-channel_id="${userId}" data-bs-toggle="pill" data-bs-target="#zone-chat-${userId}"
                     type="button" role="tab" aria-controls="pills-profile" aria-selected="false" onclick="setChannel(this)">` + username +
         '            </button>\n' +
         '        </li>')
