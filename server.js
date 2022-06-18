@@ -6,7 +6,13 @@ const {Server} = require("socket.io");
 const app = express();
 const ent = require('ent');
 const httpServer = createServer(app);
-const io = new Server(httpServer, { /* options */});
+const io = new Server(httpServer, {
+  cors: {
+    origins: [
+      'http://localhost:4200',
+    ]
+  }
+});
 app.set('view engine', 'ejs');
 const users = [];
 
