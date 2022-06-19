@@ -29,5 +29,4 @@ jobs:
           SSH_HOST: ${{ secrets.HOST }}
 
       - name: Check out the source
-        run: |
-        ssh staging -p ${{ secrets.PORT }} 'cd /var/www/websocket/ && git fetch && git reset --hard origin/main'
+        run: ssh staging -p ${{ secrets.PORT }} 'cd /var/www/websocket/ && git fetch && git reset --hard origin/main && pm2 restart server.js'
