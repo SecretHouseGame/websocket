@@ -9,7 +9,10 @@ const ent = require('ent');
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origins: ['http://localhost:4200']
+    origins: [
+        'http://localhost:4200',
+        'https://www.secrethouse.online'
+    ]
   }
 });
 
@@ -33,7 +36,6 @@ Sentry.init({
 app.use(Sentry.Handlers.requestHandler());
 // TracingHandler creates a trace for every incoming request
 app.use(Sentry.Handlers.tracingHandler());
-
 
 app.set('view engine', 'ejs');
 const users = [];
