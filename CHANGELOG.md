@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://www.github.com/SecretHouseGame/websocket/compare/v1.0.0...v1.1.0) (2022-06-19)
+
+
+### Features
+
+* edit params order and add roomId ([10ad29c](https://www.github.com/SecretHouseGame/websocket/commit/10ad29c4d19fda10fbe97bb3ff112e70c549ee59))
+
 ## 1.0.0 (2022-06-19)
 
 
