@@ -52,14 +52,14 @@ app.get("/debug-sentry", function mainHandler(req, res) {
 
 io.on("connection", (socket) => {
   // Private message
-  socket.on("private message", (username, toUserId, fromUserId, message, partyId) => {
-    socket.broadcast.emit(toUserId, {username: username, message: message, toUserId: toUserId, fromUserId: fromUserId});
+  socket.on("private message", (partyId, roomId, username, avatar, message, fromUserId, toUserId, type) => {
+    socket.broadcast.emit(toUserId, {partyId, username, avatar, message, fromUserId, toUserId, type});
   });
 
-  socket.on('disconnect', function (message, username) {
+  socket.on('disconnect', function () {
     users.forEach(function (user) {
       if (user.client === socket.client.id) {
-        socket.broadcast.emit('message', {message: user.username + ' is disconnected '});
+        socket.broadcast.emit('message_' + user.partyId + '_' + user.roomId, {message: user.username + ' is disconnected '});
 
         for (let i=0; i < users.length; i++) {
           if (users[i] === user) {
@@ -70,27 +70,40 @@ io.on("connection", (socket) => {
 
       }
     })
-    socket.broadcast.emit(socket.id, {message: username + ' is disconnected '});
   });
 
-  socket.on('event', function (username, toUserId, fromUserId, message, partyId) {
-    console.log(username, toUserId, fromUserId, message, partyId);
-    message = ent.encode(message);
-    users.push({username, fromUserId});
+  // TODO: add RoomList to send event in every room. (Foreach)
+  socket.on('event', function (partyId, roomId, username, avatar, message, fromUserId, toUserId) {
     let type = 'event';
+    message = ent.encode(message);
 
-    socket.broadcast.emit('message_' + partyId,{username, toUserId, fromUserId, message, partyId, type});
+    users.forEach(function (user) {
+      if (user.fromUserId === fromUserId && roomId !== user.roomId) {
+        socket.broadcast.emit('message_' + user.partyId + '_' + user.roomId, {
+          partyId: user.partyId,
+          roomId: user.roomId,
+          username,
+          avatar,
+          message: user.username + ' vient de quitter la pièce',
+          fromUserId,
+          toUserId,
+          type
+        });
+      }
+    });
+
+    users.push({username, avatar, fromUserId, partyId, roomId});
+
+    socket.broadcast.emit('message_' + partyId + '_' + roomId,{partyId, roomId, username, avatar, message, fromUserId, toUserId, type});
   });
 
   // Dès qu'on reçoit un message, on récupère le pseudo de son auteur et on le transmet aux autres personnes
-  socket.on('tab-general', function (username, toUserId, fromUserId, message, partyId) {
-    console.log(message);
-    console.log(username);
-    users.push({username, fromUserId});
+  socket.on('tab-general', function (partyId, roomId, username, avatar, message, fromUserId, toUserId) {
+    users.push({username, avatar, fromUserId, partyId, roomId});
 
-    console.log(username, toUserId, fromUserId, message, partyId);
+    console.log(partyId, roomId, username, avatar, message, fromUserId, toUserId);
 
-    socket.broadcast.emit('message_' + partyId,{username, toUserId, fromUserId, message, partyId, type: 'message'});
+    socket.broadcast.emit('message_' + partyId + '_' + roomId,{partyId, roomId, username, avatar, message, fromUserId, toUserId, type: 'general-message'});
   });
 });
 

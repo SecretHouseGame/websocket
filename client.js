@@ -1,14 +1,10 @@
 // Connexion à socket.io
 const socket = io.connect('http://localhost:3000');
-let socketId;
 let currentUser = '';
 let party = '';
+let userId = '';
 let arrayDiscussion = [];
 localStorage.setItem('type', 'general')
-
-// TODO Party is id to regroup users, messages and private messages.
-// FIXME: Lorsqu'on envoie un message privee, ils sont encore deétecté comme message normaux et non message privee donc
-//  ne passe plus par le private message. -> Change le state du chat privee pour envoyer directement en message privée.
 
 // On demande le pseudo, on l'envoie au serveur et on l'affiche dans le titre
 if (localStorage.getItem('username')) {
@@ -17,6 +13,16 @@ if (localStorage.getItem('username')) {
     currentUser = prompt('Quel est votre pseudo ?');
     localStorage.setItem('username', currentUser);
 }
+if (localStorage.getItem('userId')) {
+    userId = localStorage.getItem('userId');
+} else {
+    userId = prompt('Quel est votre id ?');
+    localStorage.setItem('userId', userId);
+}
+
+roomId = prompt('Dans quel piece voulez-vous aller ?');
+localStorage.setItem('room', roomId);
+document.querySelector(`div.fade.card-body[data-room='tab-general']`).id = 'zone-chat-' + roomId;
 
 // Fake party ID
 if (localStorage.getItem('party')) {
@@ -31,17 +37,19 @@ localStorage.setItem('channel', 'tab-general');
 // When logged on websocket, send user info and get Lobby room Id
 document.title = currentUser + ' - ' + document.title;
 socket.on('connect', () => {
-    socketId = socket.id
+    //NEW PARAMS DONE
     sendMessage(
         'event',
+        localStorage.getItem('party'),
+        localStorage.getItem('room'),
         currentUser,
-        socketId,
-        socketId,
-        currentUser + ' vient de rejoindre le chat avec le socket : ' + socketId,
-        party
+        'avatar',
+        currentUser + ' vient de rejoindre la pièce ' + userId,
+        userId,
+        userId
     )
 
-    socket.on(socketId, function (data) {
+    socket.on(userId, function (data) {
         if (!arrayDiscussion.includes(data.fromUserId)) {
             arrayDiscussion.push(data.fromUserId)
 
@@ -50,37 +58,49 @@ socket.on('connect', () => {
         }
 
         if (localStorage.getItem('channel') !== data.fromUserId) {
-            addNotification (data.fromUserId)
+            addNotification(data.fromUserId)
         }
 
+        // NEW PARAMS DONE
         insertMessage(
-            data.fromUserId,
+            localStorage.getItem('channel'),
+            data.partyId,
+            data.roomId,
+            data.username,
+            data.avatar,
             data.message,
             data.fromUserId,
-            data.username
+            data.toUserId ?? data.fromUserId,
+            data.type
         )
     })
 
-    socket.on("message_" + party, function (data) {
+    socket.on("message_" + party + '_' + roomId, function (data) {
         if (localStorage.getItem('channel') !== 'tab-general') {
-            addNotification ('tab-general')
+            addNotification('tab-general')
         }
 
+        // NEW PARAMS DONE
         insertMessage(
-          'tab-general',
-          data.message,
-          data.toUserId,
-          data.username,
-          data.type
+            localStorage.getItem('channel'),
+            data.partyId,
+            data.roomId,
+            data.username,
+            data.avatar,
+            data.message,
+            data.fromUserId,
+            data.toUserId ?? data.fromUserId,
+            data.type
         )
     })
 });
 
-function sendMessage(channel, username, toUserId, fromUserId, message) {
-    socket.emit(channel, username, toUserId, fromUserId, message, localStorage.getItem('party')); // Transmet le message aux autres
+// NEW PARAMS DONE
+function sendMessage(channel, partyId, roomId, username, avatar, message, fromUserId, toUserId) {
+    socket.emit(channel, localStorage.getItem('party'), roomId, username, avatar, message, fromUserId, toUserId); // Transmet le message aux autres
 }
 
-function addNotification (tab) {
+function addNotification(tab) {
     const el = document.querySelector(`button.nav-link#` + tab);
     const notification = document.querySelector(`div#notification-` + tab);
 
@@ -96,19 +116,26 @@ function addNotification (tab) {
 }
 
 // Add message in chat page
-function insertMessage(channel, message, userId, username, type) {
-    const chat = document.querySelector('#zone-chat-' + channel);
+// NEW PARAMS DONE
+function insertMessage(channel, partyId, roomId, username, avatar, message, fromUserId, toUserId, type) {
+    let chat = '';
+
+    if (channel === 'tab-general') {
+        chat = document.querySelector('#zone-chat-' + roomId);
+    } else {
+        chat = document.querySelector('#zone-chat-' + channel);
+    }
 
     if (type === "event") {
         chat.insertAdjacentHTML(
-          'beforeend',
-          '<div class="justify-center text-xs p-3">' + message + '</div>');
+            'beforeend',
+            '<div class="justify-center text-xs p-3">' + message + '</div>');
     } else {
         chat.insertAdjacentHTML(
-          'beforeend',
-          '<div><a href="" onclick="getUserInfo(this, `' + username + '`, `' + userId + '`)" data-action="infos-user" data-id=' + userId +
-          '   data-type="private_message" data-channel_id="' + userId + '" data-bs-toggle="pill" data-bs-target="#zone-chat-' + userId + '" role="tab" aria-controls="pills-profile" aria-selected="false"  ' +
-          '>' + username + '</a> ' + message + '</div>');
+            'beforeend',
+            '<div><a href="" onclick="getUserInfo(this, `' + username + '`, `' + fromUserId + '`)" data-action="infos-user" data-id=' + fromUserId +
+            '   data-type="private_message" data-channel_id="' + fromUserId + '" data-bs-toggle="pill" data-bs-target="#zone-chat-' + fromUserId + '" role="tab" aria-controls="pills-profile" aria-selected="false"  ' +
+            '>' + username + '</a> ' + message + '</div>');
     }
 
     chat.scroll({
@@ -140,8 +167,13 @@ function setChannel(e) {
 
     if (localStorage.getItem('channel') === 'tab-general') {
         localStorage.setItem('type', 'general');
-    } else {
+    } else if (localStorage.getItem('channel') === 'pm') {
         localStorage.setItem('type', 'pm');
+    } else {
+        localStorage.setItem('type', 'room');
+        let partyId = localStorage.getItem('party');
+        let roomId = localStorage.getItem('room');
+        insertChat("message_" + partyId + '_' + roomId);
     }
 }
 
@@ -162,14 +194,18 @@ function pm(username, userId) {
 document.querySelector('#formulaire_chat').addEventListener('submit', function (e) {
     e.preventDefault();
     const message = document.querySelector('#message').value;
+    let avatar = localStorage.getItem('avatar') ?? 'https://pkimgcdn.peekyou.com/dfd8bab38ab56d2b89dac1dad40b9e1e.jpeg';
 
     if (localStorage.getItem('type') === 'general') {
-        sendMessage(localStorage.getItem('channel'), currentUser, socketId, socketId, message, localStorage.getItem('party'));
+        // NEW PARAMS DONE
+        sendMessage('tab-general', localStorage.getItem('party'), localStorage.getItem('room'), currentUser, avatar, message, userId, userId, 'tab-general');
     } else {
-        sendMessage('private message', currentUser, localStorage.getItem('channel'), socketId, message, localStorage.getItem('party'));
+        // NEW PARAMS DONE
+        sendMessage('private message', localStorage.getItem('party'), localStorage.getItem('room'), currentUser, avatar, message, userId, userId, 'pm');
     }
 
-    insertMessage(localStorage.getItem('channel'), message, socketId, currentUser); // Affiche le message aussi sur notre page
+    // NEW PARAMS DONE
+    insertMessage(localStorage.getItem('channel'), localStorage.getItem('partyId'), localStorage.getItem('room'), currentUser, avatar, message, userId, userId, 'message'); // Affiche le message aussi sur notre page
     document.querySelector('#message').value = ''; // Vide la zone de Chat et remet le focus dessus
 
     return false; // Permet de bloquer l'envoi "classique" du formulaire
