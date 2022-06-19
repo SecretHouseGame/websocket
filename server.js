@@ -37,7 +37,6 @@ app.use(Sentry.Handlers.requestHandler());
 // TracingHandler creates a trace for every incoming request
 app.use(Sentry.Handlers.tracingHandler());
 
-
 app.set('view engine', 'ejs');
 const users = [];
 
