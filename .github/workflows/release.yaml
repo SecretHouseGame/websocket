@@ -3,7 +3,7 @@ name: 📦 1 - Create a release on merge
 # Run this workflow every time a new commit pushed to your repository
 on:
   push:
-    branches: [ master ]
+    branches: [ main ]
 jobs:
   create-release:
     runs-on: ubuntu-latest
@@ -13,4 +13,4 @@ jobs:
         with:
           token: ${{ secrets.TOKEN_GITHUB }}
           release-type: node
-          default-branch: master
+          default-branch: main
