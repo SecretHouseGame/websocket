@@ -9,7 +9,10 @@ const ent = require('ent');
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origins: ['http://localhost:4200']
+    origins: [
+        'http://localhost:4200',
+        'https://www.secrethouse.online'
+    ]
   }
 });
 
