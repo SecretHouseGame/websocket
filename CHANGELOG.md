@@ -1,5 +1,12 @@
 # Changelog
 
+### [1.1.1](https://www.github.com/SecretHouseGame/websocket/compare/v1.1.0...v1.1.1) (2022-06-20)
+
+
+### Bug Fixes
+
+* change port of websocket server ([7e5dbea](https://www.github.com/SecretHouseGame/websocket/commit/7e5dbeafe13a6b28ec3b54bc0c885212de2c6e42))
+
 ## [1.1.0](https://www.github.com/SecretHouseGame/websocket/compare/v1.0.0...v1.1.0) (2022-06-19)
 
 
